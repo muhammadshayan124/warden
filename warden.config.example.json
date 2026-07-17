@@ -1,0 +1,7 @@
+{
+  "allowed_roots": ["/path/to/a/project/you/want/warden/to/touch"],
+  "allowed_commands": ["git", "python", "npm", "pytest"],
+  "allowed_apps": ["code", "notepad"],
+  "unsafe_shell": false,
+  "confirmation_ttl_seconds": 120
+}
