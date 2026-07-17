@@ -25,7 +25,7 @@ def test_launch_app_calls_startfile_on_windows(config):
 
 
 def test_launch_app_with_args_uses_popen_instead_of_startfile(config):
-    with patch("warden.core.apps.subprocess.Popen") as mock_popen:
+    with patch("warden.core.apps.Popen") as mock_popen:
         apps.launch_app(config, "notepad", args=["file.txt"])
         mock_popen.assert_called_once_with(["notepad", "file.txt"])
 
@@ -33,7 +33,7 @@ def test_launch_app_with_args_uses_popen_instead_of_startfile(config):
 def test_launch_app_uses_open_on_macos(config):
     with (
         patch("warden.core.apps.platform.system", return_value="Darwin"),
-        patch("warden.core.apps.subprocess.Popen") as mock_popen,
+        patch("warden.core.apps.Popen") as mock_popen,
     ):
         apps.launch_app(config, "notepad")
         mock_popen.assert_called_once_with(["open", "-a", "notepad"])

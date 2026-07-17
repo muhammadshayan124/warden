@@ -12,7 +12,13 @@ from __future__ import annotations
 
 import os
 import platform
-import subprocess
+
+# A bound `Popen` name (rather than `import subprocess` + `subprocess.Popen`)
+# so tests can patch *this module's* reference alone. Patching
+# "warden.core.apps.subprocess.Popen" would patch the subprocess module
+# itself, process-wide -- catching any unrelated Popen call any other library
+# happens to make during the test too, not just this function's.
+from subprocess import Popen
 from typing import Any
 
 from warden.config import WardenConfig
@@ -27,12 +33,12 @@ def launch_app(
 
     if args:
         # os.startfile has no way to pass arguments, so fall back to a direct launch.
-        subprocess.Popen([name_or_path, *args])
+        Popen([name_or_path, *args])
     elif system == "Windows":
         os.startfile(name_or_path)  # noqa: S606 -- name_or_path is allowlist-checked above
     elif system == "Darwin":
-        subprocess.Popen(["open", "-a", name_or_path])
+        Popen(["open", "-a", name_or_path])
     else:
-        subprocess.Popen(["xdg-open", name_or_path])
+        Popen(["xdg-open", name_or_path])
 
     return {"status": "ok", "launched": name_or_path}
