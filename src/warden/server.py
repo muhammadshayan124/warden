@@ -15,7 +15,7 @@ from mcp.server.fastmcp import FastMCP
 from warden.audit import AuditLogger
 from warden.config import WardenConfig
 from warden.confirmation import ConfirmationStore
-from warden.core import apps, filesystem, process, system
+from warden.core import apps, filesystem, introspection, process, system
 
 mcp = FastMCP("warden")
 
@@ -162,6 +162,30 @@ def launch_app(name_or_path: str, args: list[str] | None = None) -> dict[str, An
 def get_system_info() -> dict[str, Any]:
     """Get OS, CPU, memory, and disk usage info. Read-only."""
     return _run("get_system_info", {}, system.get_system_info)
+
+
+@mcp.tool()
+def get_effective_permissions() -> dict[str, Any]:
+    """Show the operator's current allowed_roots/allowed_commands/allowed_apps/
+    unsafe_shell config -- what this warden instance is actually permitted to
+    touch, before attempting something that might be out of scope. Read-only."""
+    return _run("get_effective_permissions", {}, introspection.get_effective_permissions, _config)
+
+
+@mcp.tool()
+def get_audit_log(limit: int = 50, tool_filter: str | None = None) -> list[dict[str, Any]]:
+    """Show the most recent tool calls this warden instance has made (what,
+    when, and whether it succeeded) -- answers "what have you done to my
+    machine" from inside the same session, instead of requiring the operator
+    to go read the log file by hand. Read-only."""
+    return _run(
+        "get_audit_log",
+        {"limit": limit, "tool_filter": tool_filter},
+        introspection.get_audit_log,
+        _audit,
+        limit,
+        tool_filter,
+    )
 
 
 def main() -> None:

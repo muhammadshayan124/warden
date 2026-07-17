@@ -84,3 +84,20 @@ async def test_failed_call_is_recorded_in_the_audit_log_too(sandbox):
         await server_module.mcp.call_tool("read_file", {"path": "/definitely/not/allowed.txt"})
     entries = server_module._audit.read_all()
     assert any(e["tool"] == "read_file" and e["status"] == "error" for e in entries)
+
+
+async def test_get_effective_permissions_round_trips_through_mcp(config, sandbox):
+    result = await server_module.mcp.call_tool("get_effective_permissions", {})
+    data = _text(result)
+    assert data["allowed_roots"] == [str(sandbox)]
+    assert data["unsafe_shell"] is False
+
+
+async def test_get_audit_log_sees_its_own_earlier_calls(sandbox):
+    await server_module.mcp.call_tool("get_system_info", {})
+    await server_module.mcp.call_tool("get_system_info", {})
+
+    result = await server_module.mcp.call_tool("get_audit_log", {"tool_filter": "get_system_info"})
+    entries = _text(result)["result"]
+    assert len(entries) == 2
+    assert all(e["tool"] == "get_system_info" for e in entries)

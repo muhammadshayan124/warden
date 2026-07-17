@@ -60,7 +60,8 @@ jobs:
               expected = {
                   'list_directory', 'read_file', 'search_files', 'write_file',
                   'delete_file', 'list_processes', 'run_command', 'kill_process',
-                  'launch_app', 'get_system_info',
+                  'launch_app', 'get_system_info', 'get_effective_permissions',
+                  'get_audit_log',
               }
               assert expected <= names, f'missing tools: {expected - names}'
               print('all', len(names), 'tools registered correctly')

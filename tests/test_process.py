@@ -46,6 +46,25 @@ def test_run_command_times_out(config):
     assert result["status"] == "timeout"
 
 
+def test_run_command_defaults_cwd_to_first_allowed_root(config, sandbox):
+    result = process.run_command(config, "python", ["-c", "import os; print(os.getcwd())"])
+    assert result["cwd"] == str(sandbox)
+
+
+def test_run_command_honors_explicit_cwd_within_allowed_roots(config, sandbox):
+    result = process.run_command(
+        config, "python", ["-c", "import os; print(os.getcwd())"], cwd=str(sandbox / "sub")
+    )
+    assert result["cwd"] == str(sandbox / "sub")
+
+
+def test_run_command_rejects_cwd_outside_allowed_roots(config, tmp_path):
+    outside = tmp_path.parent / "outside-cwd"
+    outside.mkdir(exist_ok=True)
+    with pytest.raises(PermissionDenied):
+        process.run_command(config, "python", ["-c", "print('hi')"], cwd=str(outside))
+
+
 @pytest.fixture
 def sleeper_process():
     """A real, harmless child process to exercise kill_process against."""

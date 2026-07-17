@@ -1,9 +1,16 @@
 """Process listing, command execution, and process termination.
 
 run_command is allowlist-gated by config.allowed_commands unless the
-operator has explicitly set unsafe_shell=True. kill_process always requires
-the two-step confirmation flow -- there is no config flag that skips it,
-since killing the wrong process has no undo.
+operator has explicitly set unsafe_shell=True. Its working directory is
+always resolved against allowed_roots too -- an allowlisted command run
+from an arbitrary cwd could otherwise read/write anywhere on disk, which
+would quietly undermine the whole point of allowed_roots. This does not
+(and cannot, short of real sandboxing) stop an allowlisted general-purpose
+interpreter like `python` from touching paths outside allowed_roots via its
+own arguments -- see the README's Limitations section.
+
+kill_process always requires the two-step confirmation flow -- there is no
+config flag that skips it, since killing the wrong process has no undo.
 """
 
 from __future__ import annotations
@@ -16,7 +23,7 @@ import psutil
 
 from warden.config import WardenConfig
 from warden.confirmation import ConfirmationStore
-from warden.safety import check_command_allowed
+from warden.safety import check_command_allowed, resolve_scoped_path
 
 DEFAULT_COMMAND_TIMEOUT_SECONDS = 30.0
 
@@ -45,10 +52,16 @@ def run_command(
     check_command_allowed(command, config)
     argv = [command, *(args or [])]
 
+    # A cwd outside allowed_roots would let an allowlisted command read/write
+    # anywhere via relative paths, quietly defeating the filesystem scoping.
+    # No cwd given defaults to the first allowed root rather than whatever
+    # directory the warden process itself happens to be running from.
+    resolved_cwd = resolve_scoped_path(cwd, config) if cwd else config.allowed_roots[0]
+
     try:
         result = subprocess.run(
             argv,
-            cwd=cwd,
+            cwd=str(resolved_cwd),
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -67,6 +80,7 @@ def run_command(
     return {
         "status": "ok" if result.returncode == 0 else "nonzero_exit",
         "command": shlex.join(argv),
+        "cwd": str(resolved_cwd),
         "returncode": result.returncode,
         "stdout": result.stdout[-10_000:],
         "stderr": result.stderr[-10_000:],
