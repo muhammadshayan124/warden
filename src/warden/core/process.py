@@ -92,14 +92,21 @@ def kill_process(
     pid: int,
     confirm_token: str | None = None,
 ) -> dict[str, Any]:
-    try:
-        proc = psutil.Process(pid)
-        name = proc.name()
-    except psutil.NoSuchProcess as exc:
-        raise ProcessLookupError(f"No process with pid {pid}") from exc
+    # The fingerprint is keyed on pid alone, not "pid:name" -- verifying a
+    # confirm_token must not require resolving the target process first,
+    # otherwise a token minted for one pid but replayed against a *different,
+    # nonexistent* pid would raise ProcessLookupError before the mismatch was
+    # ever checked, masking the real rejection. The tradeoff: if this pid is
+    # reused by an unrelated process within confirmation_ttl_seconds, a stale
+    # token would still match by pid. That window is small (TTL defaults to
+    # 120s) and PID reuse that fast is rare, but it is a real, accepted gap.
+    fingerprint = f"kill:{pid}"
 
-    fingerprint = f"kill:{pid}:{name}"
     if not confirm_token:
+        try:
+            name = psutil.Process(pid).name()
+        except psutil.NoSuchProcess as exc:
+            raise ProcessLookupError(f"No process with pid {pid}") from exc
         token = confirmations.create("kill_process", fingerprint)
         return {
             "status": "confirmation_required",
@@ -110,6 +117,14 @@ def kill_process(
 
     if not confirmations.verify(confirm_token, "kill_process", fingerprint):
         raise PermissionError("Invalid, expired, or already-used confirm_token for kill_process")
+
+    try:
+        proc = psutil.Process(pid)
+        name = proc.name()
+    except psutil.NoSuchProcess as exc:
+        raise ProcessLookupError(
+            f"pid {pid} no longer exists (it may have already exited)"
+        ) from exc
 
     proc.terminate()
     return {"status": "ok", "pid": pid, "name": name}

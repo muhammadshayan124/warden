@@ -39,7 +39,13 @@ def test_check_command_allowed_rejects_non_allowlisted_command(config):
 
 
 def test_check_command_allowed_strips_path_and_extension(config):
-    check_command_allowed(r"C:\Windows\System32\echo.exe", config)  # should not raise
+    # Forward slashes, not backslashes: pathlib.Path only treats backslash as
+    # a separator on Windows, so a hardcoded Windows-style path would parse
+    # into one giant filename component on Linux/macOS CI runners and this
+    # test would fail there for reasons unrelated to the actual behavior
+    # being tested. Forward slashes are separators on every platform pathlib
+    # supports, which is what makes this test portable across the CI matrix.
+    check_command_allowed("/usr/local/bin/echo.exe", config)  # should not raise
 
 
 def test_check_command_allowed_permits_anything_in_unsafe_shell_mode(config):

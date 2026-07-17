@@ -12,9 +12,12 @@ def test_launch_app_rejects_non_allowlisted_app(config):
 
 
 def test_launch_app_calls_startfile_on_windows(config):
+    # create=True: os.startfile doesn't exist at all on non-Windows Python, but
+    # this test deliberately exercises the Windows branch regardless of the
+    # host OS actually running the suite (CI runs this on Linux and Windows).
     with (
         patch("warden.core.apps.platform.system", return_value="Windows"),
-        patch("warden.core.apps.os.startfile") as mock_startfile,
+        patch("warden.core.apps.os.startfile", create=True) as mock_startfile,
     ):
         result = apps.launch_app(config, "notepad")
         mock_startfile.assert_called_once_with("notepad")
